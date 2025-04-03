@@ -1,10 +1,13 @@
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from PIL import Image
 from ultralytics import YOLO
+import requests
 import io
 import numpy as np
+import os
 
 app = FastAPI()
 
@@ -16,9 +19,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load YOLOv8 model (تأكدي إن ملف model.pt مرفوع مع المشروع)
-model = YOLO("model.pt")
+# ------------------ Download model if not found ------------------
+model_path = "model.pt"
+drive_url = "https://drive.google.com/file/d/13o7_pMIAVKgQ91ZoTptMNCbglvHqIQNy/view?usp=sharing"  
 
+if not os.path.exists(model_path):
+    print("🔽 Downloading model from Google Drive...")
+    with open(model_path, "wb") as f:
+        f.write(requests.get(drive_url).content)
+    print("✅ Model downloaded.")
+
+# ------------------ Load YOLOv8 model ------------------
+model = YOLO(model_path)
+
+# ------------------ API route ------------------
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
     contents = await file.read()
@@ -39,3 +53,8 @@ async def predict(file: UploadFile = File(...)):
         })
 
     return JSONResponse(content={"predictions": predictions})
+
+# ------------------ Run server ------------------
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
