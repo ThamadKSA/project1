@@ -1,12 +1,7 @@
 fastapi
 uvicorn
 pillow
+ultralytics
+torch==2.0.1
 python-multipart
 gdown
-
-# نحدد نسخة ultralytics أقدم (قبل ما تستخدم torch 2.6.0)
-ultralytics==8.0.20
-
-# نحدد نسخة خفيفة ومجربة من torch و torchvision
-torch==2.0.1
-torchvision==0.15.2
