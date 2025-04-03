@@ -20,13 +20,15 @@ app.add_middleware(
 )
 
 # ------------------ Download model if not found ------------------
+import gdown
+
 model_path = "model.pt"
-drive_url = "https://drive.google.com/file/d/13o7_pMIAVKgQ91ZoTptMNCbglvHqIQNy/view?usp=sharing"  
+drive_id = "1Zz7XdR4jXe3ZkAKD8L3rF2bZP7H5Rz4q"  # ← مثال: استبدليه بـ ID ملفك الفعلي
 
 if not os.path.exists(model_path):
     print("🔽 Downloading model from Google Drive...")
-    with open(model_path, "wb") as f:
-        f.write(requests.get(drive_url).content)
+    url = f"https://drive.google.com/uc?id={drive_id}"
+    gdown.download(url, model_path, quiet=False)
     print("✅ Model downloaded.")
 
 # ------------------ Load YOLOv8 model ------------------
