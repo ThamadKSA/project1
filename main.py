@@ -1,3 +1,4 @@
+# ✅ FastAPI YOLOv8 API for Render (with Google Drive model download)
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,15 +21,13 @@ app.add_middleware(
 )
 
 # ------------------ Download model if not found ------------------
-import gdown
-
 model_path = "model.pt"
-drive_id = "1Zz7XdR4jXe3ZkAKD8L3rF2bZP7H5Rz4q"  # ← مثال: استبدليه بـ ID ملفك الفعلي
+drive_url = "https://drive.google.com/uc?export=download&id=13o7_pMIAVKgQ91ZoTptMNCbglvHqIQNy"
 
 if not os.path.exists(model_path):
     print("🔽 Downloading model from Google Drive...")
-    url = f"https://drive.google.com/uc?id={drive_id}"
-    gdown.download(url, model_path, quiet=False)
+    with open(model_path, "wb") as f:
+        f.write(requests.get(drive_url).content)
     print("✅ Model downloaded.")
 
 # ------------------ Load YOLOv8 model ------------------
