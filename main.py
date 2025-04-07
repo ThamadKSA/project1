@@ -8,6 +8,7 @@ from ultralytics import YOLO
 import gdown
 import io
 import os
+from starlette.concurrency import run_in_threadpool  # ✅ لتشغيل النموذج في thread منفصل
 
 app = FastAPI()
 
@@ -50,9 +51,8 @@ async def predict(file: UploadFile = File(...)):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # ✅ Run OD model only (no IoU or OCR for now)
-    od_model = app.state.od_model
-    od_results = od_model(image)
+    # ✅ شغلي المودل في thread منفصل عشان ما ينهار السيرفر
+    od_results = await run_in_threadpool(app.state.od_model, image)
 
     od_boxes = []
     for box in od_results[0].boxes.data:
