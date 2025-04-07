@@ -43,35 +43,14 @@ async def load_models_once():
     app.state.ocr_model = YOLO(ocr_model_path)
     print("✅ Models loaded and ready.")
 
-# ------------------ Helper: IoU Filter ------------------
-def calculate_iou(box1, box2):
-    xA = max(box1[0], box2[0])
-    yA = max(box1[1], box2[1])
-    xB = min(box1[2], box2[2])
-    yB = min(box1[3], box2[3])
-    interArea = max(0, xB - xA) * max(0, yB - yA)
-    box1Area = (box1[2] - box1[0]) * (box1[3] - box1[1])
-    box2Area = (box2[2] - box2[0]) * (box2[3] - box2[1])
-    unionArea = float(box1Area + box2Area - interArea)
-    return interArea / unionArea if unionArea != 0 else 0
-
-def filter_overlapping_boxes(boxes, threshold=0.5):
-    filtered = []
-    boxes = sorted(boxes, key=lambda b: b['confidence'], reverse=True)
-    while boxes:
-        current = boxes.pop(0)
-        filtered.append(current)
-        boxes = [b for b in boxes if calculate_iou(current['box'], b['box']) < threshold]
-    return filtered
-
 # ------------------ Main Predict API ------------------
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # فقط اختبار: تشغيل نموذج OD فقط بدون IoU ولا OCR
-    od_results = od_model(image)
+    # ✅ تشغيل نموذج OD فقط بدون IoU ولا OCR
+    od_results = app.state.od_model(image)
     od_boxes = []
     for box in od_results[0].boxes.data:
         conf = float(box[4])
