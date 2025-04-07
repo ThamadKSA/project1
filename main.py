@@ -1,4 +1,4 @@
-# ✅ FastAPI API that chains OD then OCR using YOLOv8 models
+# ✅ FastAPI API that chains OD then OCR using YOLOv8 models (with single-time model loading)
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,15 +33,14 @@ def download_model_if_needed(drive_id, output):
         gdown.download(url, output, quiet=False)
         print(f"✅ {output} downloaded successfully.")
 
-# ------------------ Load models once when app starts ------------------
+# ------------------ Load models once at startup ------------------
 @app.on_event("startup")
-def load_models_once():
+async def load_models_once():
     download_model_if_needed(od_drive_id, od_model_path)
     download_model_if_needed(ocr_drive_id, ocr_model_path)
 
-    global od_model, ocr_model
-    od_model = YOLO(od_model_path)
-    ocr_model = YOLO(ocr_model_path)
+    app.state.od_model = YOLO(od_model_path)
+    app.state.ocr_model = YOLO(ocr_model_path)
     print("✅ Models loaded and ready.")
 
 # ------------------ Helper: IoU Filter ------------------
@@ -71,7 +70,11 @@ async def predict(file: UploadFile = File(...)):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # Step 1: Run OD
+    # Step 1: Get models from state
+    od_model = app.state.od_model
+    ocr_model = app.state.ocr_model
+
+    # Step 2: Run OD
     od_results = od_model(image)
     od_boxes = []
     for box in od_results[0].boxes.data:
@@ -80,10 +83,10 @@ async def predict(file: UploadFile = File(...)):
         x1, y1, x2, y2 = map(int, box[:4])
         od_boxes.append({"box": [x1, y1, x2, y2], "confidence": conf, "class_id": cls})
 
-    # Step 2: Filter
+    # Step 3: Filter
     filtered_boxes = filter_overlapping_boxes(od_boxes)
 
-    # Step 3: Crop and OCR
+    # Step 4: Crop and OCR
     predictions = []
     for item in filtered_boxes:
         x1, y1, x2, y2 = item['box']
