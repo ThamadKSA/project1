@@ -11,6 +11,7 @@ import os
 
 app = FastAPI()
 
+# ------------------ CORS Middleware ------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ------------------ Download OD and OCR models from Drive ------------------
+# ------------------ Download Models ------------------
 od_model_path = "od_model.pt"
 od_drive_id = "13PHjb6k65CgW_xzom3rPUdqO-jP07tF5"
 
@@ -33,7 +34,7 @@ def download_model_if_needed(drive_id, output):
         gdown.download(url, output, quiet=False)
         print(f"✅ {output} downloaded successfully.")
 
-# ------------------ Load models once at startup ------------------
+# ------------------ Load Models Once on Startup ------------------
 @app.on_event("startup")
 async def load_models_once():
     download_model_if_needed(od_drive_id, od_model_path)
@@ -43,14 +44,16 @@ async def load_models_once():
     app.state.ocr_model = YOLO(ocr_model_path)
     print("✅ Models loaded and ready.")
 
-# ------------------ Main Predict API ------------------
+# ------------------ Predict Endpoint ------------------
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # ✅ تشغيل نموذج OD فقط بدون IoU ولا OCR
-    od_results = app.state.od_model(image)
+    # ✅ Run OD model only (no IoU or OCR for now)
+    od_model = app.state.od_model
+    od_results = od_model(image)
+
     od_boxes = []
     for box in od_results[0].boxes.data:
         conf = float(box[4])
