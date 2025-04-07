@@ -70,39 +70,17 @@ async def predict(file: UploadFile = File(...)):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # Step 1: Get models from state
-    od_model = app.state.od_model
-    ocr_model = app.state.ocr_model
-
-    # Step 2: Run OD
+    # فقط اختبار: تشغيل نموذج OD فقط بدون IoU ولا OCR
     od_results = od_model(image)
     od_boxes = []
     for box in od_results[0].boxes.data:
         conf = float(box[4])
         cls = int(box[5])
         x1, y1, x2, y2 = map(int, box[:4])
-        od_boxes.append({"box": [x1, y1, x2, y2], "confidence": conf, "class_id": cls})
-
-    # Step 3: Filter
-    filtered_boxes = filter_overlapping_boxes(od_boxes)
-
-    # Step 4: Crop and OCR
-    predictions = []
-    for item in filtered_boxes:
-        x1, y1, x2, y2 = item['box']
-        crop = image.crop((x1, y1, x2, y2))
-        ocr_results = ocr_model(crop)
-
-        chars = []
-        for char in ocr_results[0].boxes.data:
-            char_conf = float(char[4])
-            char_id = int(char[5])
-            chars.append({"char_id": char_id, "confidence": round(char_conf, 3)})
-
-        predictions.append({
-            "inscription_bbox": item['box'],
-            "inscription_confidence": round(item['confidence'], 3),
-            "translated_chars": chars
+        od_boxes.append({
+            "box": [x1, y1, x2, y2],
+            "confidence": round(conf, 3),
+            "class_id": cls
         })
 
-    return JSONResponse(content={"results": predictions})
+    return JSONResponse(content={"od_only_results": od_boxes})
