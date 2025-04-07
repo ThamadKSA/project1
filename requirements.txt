@@ -7,3 +7,7 @@ numpy==1.24.4
 python-multipart
 gdown
 scipy
+
+# إضافات مقترحة:
+starlette == 0.27.0   # (FastAPI يعتمد عليها، وأحيانًا بعض النسخ تسبب مشاكل)
+typing-extensions     # لدعم أنظمة typing لبعض المكتبات
