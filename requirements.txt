@@ -3,5 +3,6 @@ uvicorn
 requests
 tqdm
 ultralytics==8.1.24
+torch==2.5.1
 opencv-python
 
