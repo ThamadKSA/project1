@@ -14,8 +14,10 @@ ocr_url = "https://huggingface.co/Randa88/OCR/resolve/main/best-2.pt"
 
 # تحميل المودلات
 os.makedirs("models", exist_ok=True)
-download_model(od_url, "models/od_model.pt")
-download_model(ocr_url, "models/ocr_model.pt")
+
+# أرقام تقريبية للحجم بالبايت (مثلاً 20MB = 20 * 1024 * 1024)
+download_model(od_url, "models/od_model.pt", expected_size=20 * 1024 * 1024)
+download_model(ocr_url, "models/ocr_model.pt", expected_size=20 * 1024 * 1024)
 
 # تحميل YOLO models
 od_model = YOLO("models/od_model.pt")
