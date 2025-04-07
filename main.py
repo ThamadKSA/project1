@@ -4,20 +4,18 @@ import os
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from utils import download_model
+from utils import download_model_from_gdrive
 
 app = FastAPI()
 
-# روابط Hugging Face
-od_url = "https://huggingface.co/Randa88/OD/resolve/main/best.pt"
-ocr_url = "https://huggingface.co/Randa88/OCR/resolve/main/best-2.pt"
+# روابط Google Drive
+od_id = "13PHjb6k65CgW_xzom3rPUdqO-jP07tF5"
+ocr_id = "1-4m87-gC-ui0ANOYZ03E6B7QvbZXVESP"
 
 # تحميل المودلات
 os.makedirs("models", exist_ok=True)
-
-# أرقام تقريبية للحجم بالبايت (مثلاً 20MB = 20 * 1024 * 1024)
-download_model(od_url, "models/od_model.pt", expected_size=20 * 1024 * 1024)
-download_model(ocr_url, "models/ocr_model.pt", expected_size=20 * 1024 * 1024)
+download_model_from_gdrive(od_id, "models/od_model.pt")
+download_model_from_gdrive(ocr_id, "models/ocr_model.pt")
 
 # تحميل YOLO models
 od_model = YOLO("models/od_model.pt")
@@ -29,27 +27,24 @@ def root():
 
 @app.post("/predict")
 async def predict(image: UploadFile = File(...)):
-    # 1. قراءة الصورة
     contents = await image.read()
     np_image = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
 
-    # 2. تشغيل OD model على الصورة الأصلية
+    # كشف أماكن النقوش
     results = od_model(img)[0]
-    boxes = results.boxes.xyxy.cpu().numpy()  # [x1, y1, x2, y2]
+    boxes = results.boxes.xyxy.cpu().numpy()
 
     predictions = []
-
-    for i, box in enumerate(boxes):
+    for box in boxes:
         x1, y1, x2, y2 = map(int, box)
         cropped_img = img[y1:y2, x1:x2]
 
-        # 3. تشغيل OCR على كل نقش مقصوص
+        # تشغيل OCR على كل نقش
         ocr_result = ocr_model(cropped_img)[0]
         names = ocr_result.names
-        boxes_ocr = ocr_result.boxes
-        for box_ocr in boxes_ocr:
-            class_id = int(box_ocr.cls[0])
+        for b in ocr_result.boxes:
+            class_id = int(b.cls[0])
             label = names[class_id]
             predictions.append(label)
 
