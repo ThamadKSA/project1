@@ -1,5 +1,3 @@
-# ✅ FastAPI API that chains OD then OCR using YOLOv8 models (with single-time model loading)
-
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,7 +6,7 @@ from ultralytics import YOLO
 import gdown
 import io
 import os
-from starlette.concurrency import run_in_threadpool  # ✅ لتشغيل النموذج في thread منفصل
+from starlette.concurrency import run_in_threadpool
 
 app = FastAPI()
 
@@ -21,12 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ------------------ Download Models ------------------
+# ------------------ Model Paths and Drive IDs ------------------
 od_model_path = "od_model.pt"
 od_drive_id = "13PHjb6k65CgW_xzom3rPUdqO-jP07tF5"
-
-ocr_model_path = "ocr_model.pt"
-ocr_drive_id = "1-4m87-gC-ui0ANOYZ03E6B7QvbZXVESP"
 
 def download_model_if_needed(drive_id, output):
     if not os.path.exists(output):
@@ -35,15 +30,12 @@ def download_model_if_needed(drive_id, output):
         gdown.download(url, output, quiet=False)
         print(f"✅ {output} downloaded successfully.")
 
-# ------------------ Load Models Once on Startup ------------------
+# ------------------ Load OD Model Once on Startup ------------------
 @app.on_event("startup")
-async def load_models_once():
+async def load_od_model():
     download_model_if_needed(od_drive_id, od_model_path)
-    download_model_if_needed(ocr_drive_id, ocr_model_path)
-
     app.state.od_model = YOLO(od_model_path)
-    app.state.ocr_model = YOLO(ocr_model_path)
-    print("✅ Models loaded and ready.")
+    print("✅ OD Model loaded and ready.")
 
 # ------------------ Predict Endpoint ------------------
 @app.post("/predict/")
@@ -51,8 +43,8 @@ async def predict(file: UploadFile = File(...)):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # ✅ شغلي المودل في thread منفصل عشان ما ينهار السيرفر
-    od_results = await run_in_threadpool(app.state.od_model, image)
+    od_model = app.state.od_model
+    od_results = await run_in_threadpool(od_model, image)
 
     od_boxes = []
     for box in od_results[0].boxes.data:
