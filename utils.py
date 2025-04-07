@@ -2,10 +2,13 @@ import os
 import requests
 from tqdm import tqdm
 
-def download_model(url, save_path):
+def download_model(url, save_path, expected_size=None):
     if os.path.exists(save_path):
-        print(f"{save_path} already exists. Skipping download.")
-        return
+        if expected_size is None or os.path.getsize(save_path) >= expected_size:
+            print(f"{save_path} already exists and looks good. Skipping download.")
+            return
+        else:
+            print(f"{save_path} exists but seems incomplete. Re-downloading...")
 
     print(f"Downloading model from {url}...")
     response = requests.get(url, stream=True)
