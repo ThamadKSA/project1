@@ -8,19 +8,22 @@ from utils import download_model_from_gdrive
 
 app = FastAPI()
 
-# روابط Google Drive
+# روابط Google Drive للمودلين
 od_id = "13PHjb6k65CgW_xzom3rPUdqO-jP07tF5"
+ocr_id = "1-4m87-gC-ui0ANOYZ03E6B7QvbZXVESP"
 
-# تحميل المودل
+# تحميل المودلين إذا ما كانوا موجودين
 os.makedirs("models", exist_ok=True)
 download_model_from_gdrive(od_id, "models/od_model.pt")
+download_model_from_gdrive(ocr_id, "models/ocr_model.pt")
 
-# تحميل مودل YOLO الخاص بـ OD
+# تحميل مودلي YOLO
 od_model = YOLO("models/od_model.pt")
+ocr_model = YOLO("models/ocr_model.pt")
 
 @app.get("/")
 def root():
-    return {"message": "YOLO OD Model Loaded ✅"}
+    return {"message": "OD + OCR models loaded 🎉"}
 
 @app.post("/predict")
 async def predict(image: UploadFile = File(...)):
@@ -28,10 +31,21 @@ async def predict(image: UploadFile = File(...)):
     np_image = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
 
-    results = od_model(img)[0]
-    boxes = results.boxes.xyxy.cpu().numpy()
+    # تشغيل مودل OD لاستخراج مناطق النقوش
+    od_results = od_model(img)[0]
+    boxes = od_results.boxes.xyxy.cpu().numpy()
 
-    return JSONResponse(content={
-        "message": "OD model detected successfully ✅",
-        "detected_boxes": len(boxes)
-    })
+    predictions = []
+
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box)
+        cropped = img[y1:y2, x1:x2]
+
+        # تشغيل مودل OCR على الجزء المقصوص
+        ocr_results = ocr_model(cropped)[0]
+        for ocr_box in ocr_results.boxes:
+            class_id = int(ocr_box.cls[0])
+            label = ocr_results.names[class_id]
+            predictions.append(label)
+
+    return JSONResponse(content={"translated_symbols": predictions})
