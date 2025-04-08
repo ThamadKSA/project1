@@ -46,14 +46,21 @@ async def predict(image: UploadFile = File(...)):
         x1, y1, x2, y2 = map(int, box)
         cropped = img[y1:y2, x1:x2]
 
-        # تشغيل OCR
+        # تشغيل OCR على الجزء المقصوص
         ocr_results = ocr_model(cropped)[0]
         for ocr_box in ocr_results.boxes:
             class_id = int(ocr_box.cls[0])
             label = ocr_results.names[class_id]
 
-            x1_ocr, y1_ocr, x2_ocr, y2_ocr = map(int, ocr_box.xyxy[0])
+            # إحداثيات داخل الصورة المقصوصة
+            x1_local, y1_local, x2_local, y2_local = map(int, ocr_box.xyxy[0])
             conf = float(ocr_box.conf[0])
+
+            # تحويل الإحداثيات إلى الصورة الأصلية
+            x1_ocr = x1 + x1_local
+            y1_ocr = y1 + y1_local
+            x2_ocr = x1 + x2_local
+            y2_ocr = y1 + y2_local
 
             predictions.append({
                 "label": label,
