@@ -8,22 +8,19 @@ from utils import download_model_from_gdrive
 
 app = FastAPI()
 
-# روابط Google Drive للمودلين
-od_id = "13PHjb6k65CgW_xzom3rPUdqO-jP07tF5"
+# رابط Google Drive لمودل OCR فقط
 ocr_id = "1-4m87-gC-ui0ANOYZ03E6B7QvbZXVESP"
 
-# تحميل المودلين إذا ما كانوا موجودين
+# تحميل المودل إذا ما كان موجود
 os.makedirs("models", exist_ok=True)
-download_model_from_gdrive(od_id, "models/od_model.pt")
 download_model_from_gdrive(ocr_id, "models/ocr_model.pt")
 
-# تحميل مودلي YOLO
-od_model = YOLO("models/od_model.pt")
+# تحميل مودل OCR فقط
 ocr_model = YOLO("models/ocr_model.pt")
 
 @app.get("/")
 def root():
-    return {"message": "OD + OCR models loaded 🎉"}
+    return {"message": "OCR-only model loaded ✅"}
 
 @app.post("/predict")
 async def predict(image: UploadFile = File(...)):
@@ -31,7 +28,7 @@ async def predict(image: UploadFile = File(...)):
     np_image = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
 
-    # OCR على الصورة كاملة بدون قص
+    # تشغيل OCR على الصورة الكاملة
     ocr_results = ocr_model(img)[0]
     predictions = []
 
