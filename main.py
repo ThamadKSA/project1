@@ -31,9 +31,14 @@ async def predict(image: UploadFile = File(...)):
     np_image = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
 
-    # تشغيل مودل OD لاستخراج مناطق النقوش
+    # تشغيل OD
     od_results = od_model(img)[0]
+    od_boxes = []
     boxes = od_results.boxes.xyxy.cpu().numpy()
+
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box)
+        od_boxes.append([x1, y1, x2, y2])  # حفظ البوكس حق OD
 
     predictions = []
 
@@ -41,7 +46,7 @@ async def predict(image: UploadFile = File(...)):
         x1, y1, x2, y2 = map(int, box)
         cropped = img[y1:y2, x1:x2]
 
-        # تشغيل مودل OCR على الجزء المقصوص
+        # تشغيل OCR
         ocr_results = ocr_model(cropped)[0]
         for ocr_box in ocr_results.boxes:
             class_id = int(ocr_box.cls[0])
@@ -56,4 +61,7 @@ async def predict(image: UploadFile = File(...)):
                 "box": [x1_ocr, y1_ocr, x2_ocr, y2_ocr]
             })
 
-    return JSONResponse(content={"predictions": predictions})
+    return JSONResponse(content={
+        "od_boxes": od_boxes,
+        "ocr_predictions": predictions
+    })
