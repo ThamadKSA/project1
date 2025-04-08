@@ -38,25 +38,26 @@ async def predict(image: UploadFile = File(...)):
 
     for box in boxes:
         x1, y1, x2, y2 = map(int, box)
-        od_boxes.append([x1, y1, x2, y2])  # حفظ البوكس حق OD
+        od_boxes.append([x1, y1, x2, y2])  # حفظ بوكس النقش
 
     predictions = []
 
-    for box in boxes:
+    # نمر على كل نقش ونسوي OCR داخله فقط
+    for idx, box in enumerate(boxes):
         x1, y1, x2, y2 = map(int, box)
         cropped = img[y1:y2, x1:x2]
 
-        # تشغيل OCR على الجزء المقصوص
+        # تشغيل OCR على الصورة المقصوصة
         ocr_results = ocr_model(cropped)[0]
         for ocr_box in ocr_results.boxes:
             class_id = int(ocr_box.cls[0])
             label = ocr_results.names[class_id]
 
-            # إحداثيات داخل الصورة المقصوصة
+            # إحداثيات داخل القص
             x1_local, y1_local, x2_local, y2_local = map(int, ocr_box.xyxy[0])
             conf = float(ocr_box.conf[0])
 
-            # تحويل الإحداثيات إلى الصورة الأصلية
+            # تحويل الإحداثيات للصورة الأصلية
             x1_ocr = x1 + x1_local
             y1_ocr = y1 + y1_local
             x2_ocr = x1 + x2_local
@@ -65,7 +66,8 @@ async def predict(image: UploadFile = File(...)):
             predictions.append({
                 "label": label,
                 "confidence": round(conf, 3),
-                "box": [x1_ocr, y1_ocr, x2_ocr, y2_ocr]
+                "box": [x1_ocr, y1_ocr, x2_ocr, y2_ocr],
+                "source_od_box": idx  # مهم للمقارنة لاحقًا
             })
 
     return JSONResponse(content={
