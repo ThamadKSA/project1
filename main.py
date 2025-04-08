@@ -23,7 +23,7 @@ ocr_model = YOLO("models/ocr_model.pt")
 
 @app.get("/")
 def root():
-    return {"message": "Smart OD → OCR API loaded 🎯"}
+    return {"message": "OD + OCR models loaded 🎉"}
 
 @app.post("/predict")
 async def predict(image: UploadFile = File(...)):
@@ -31,48 +31,41 @@ async def predict(image: UploadFile = File(...)):
     np_image = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
 
-    height, width, _ = img.shape
-
     # تشغيل OD
     od_results = od_model(img)[0]
     od_boxes = []
-    ocr_predictions = []
+    boxes = od_results.boxes.xyxy.cpu().numpy()
 
-    for box in od_results.boxes.xyxy.cpu().numpy():
+    for box in boxes:
         x1, y1, x2, y2 = map(int, box)
+        od_boxes.append([x1, y1, x2, y2])  # حفظ مربعات OD
 
-        # margin لإعطاء مساحة إضافية حول كل نقش
-        margin = 10
-        x1m = max(0, x1 - margin)
-        y1m = max(0, y1 - margin)
-        x2m = min(width, x2 + margin)
-        y2m = min(height, y2 + margin)
+    predictions = []
 
-        cropped = img[y1m:y2m, x1m:x2m]  # مقصوصة مع هامش
-        od_boxes.append([x1, y1, x2, y2])
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box)
+        cropped = img[y1:y2, x1:x2]
 
-        # تشغيل OCR على المقصوصة بهامش
-        ocr_results = ocr_model(cropped)[0]
+        # تحسين الصورة قبل تمريرها للـ OCR
+        gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+        blurred_rgb = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
 
+        # تشغيل OCR على الصورة المحسنة
+        ocr_results = ocr_model(blurred_rgb)[0]
         for ocr_box in ocr_results.boxes:
             class_id = int(ocr_box.cls[0])
             label = ocr_results.names[class_id]
+            x1_ocr, y1_ocr, x2_ocr, y2_ocr = map(int, ocr_box.xyxy[0])
             conf = float(ocr_box.conf[0])
 
-            # تحويل إحداثيات OCR إلى الصورة الأصلية
-            x1_ocr, y1_ocr, x2_ocr, y2_ocr = map(int, ocr_box.xyxy[0])
-            abs_x1 = x1m + x1_ocr
-            abs_y1 = y1m + y1_ocr
-            abs_x2 = x1m + x2_ocr
-            abs_y2 = y1m + y2_ocr
-
-            ocr_predictions.append({
+            predictions.append({
                 "label": label,
                 "confidence": round(conf, 3),
-                "box": [abs_x1, abs_y1, abs_x2, abs_y2]
+                "box": [x1_ocr + x1, y1_ocr + y1, x2_ocr + x1, y2_ocr + y1]
             })
 
     return JSONResponse(content={
         "od_boxes": od_boxes,
-        "ocr_predictions": ocr_predictions
+        "ocr_predictions": predictions
     })
