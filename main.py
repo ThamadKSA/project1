@@ -46,6 +46,14 @@ async def predict(image: UploadFile = File(...)):
         for ocr_box in ocr_results.boxes:
             class_id = int(ocr_box.cls[0])
             label = ocr_results.names[class_id]
-            predictions.append(label)
 
-    return JSONResponse(content={"translated_symbols": predictions})
+            x1_ocr, y1_ocr, x2_ocr, y2_ocr = map(int, ocr_box.xyxy[0])
+            conf = float(ocr_box.conf[0])
+
+            predictions.append({
+                "label": label,
+                "confidence": round(conf, 3),
+                "box": [x1_ocr, y1_ocr, x2_ocr, y2_ocr]
+            })
+
+    return JSONResponse(content={"predictions": predictions})
